@@ -11,14 +11,18 @@ pretty plot imported from pymatgen[2]
 Getting the code
 -------------
 
-1. Requirements
+Requirements
+------------
+[Python](https://www.python.org)
 
->pip install numpy  
->pip install scipy  
->pip install matplotlib
->pip install joblib
+[Matplotlib](http://matplotlib.org)
+
+[Scipy](https://www.scipy.org/)
+
+[Joblib](https://joblib.readthedocs.io/en/latest/)
+
 
 2. Download from git
 
->git clone https://github.com/woal777/quantumTunneling.git  
+>git clone https://github.com/woal777/QuantumTunneling2.git  
 >export PYTHONPATH=${PYTHONPATH}:--{the path of quantumTunneling}--
