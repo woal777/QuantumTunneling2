@@ -21,8 +21,12 @@ Requirements
 
 [Joblib](https://joblib.readthedocs.io/en/latest/)
 
+Installation
+------------
 
-2. Download from git
-
->git clone https://github.com/woal777/QuantumTunneling2.git  
->export PYTHONPATH=${PYTHONPATH}:--{the path of quantumTunneling}--
+```
+git clone https://github.com/woal777/QuantumTunneling2.git
+export PYTHONPATH=${PYTHONPATH}:--{the path of quantumTunneling}--
+```
+>  
+>
