@@ -59,7 +59,7 @@ class Current:
         self.gen_pot(volt)
         constants = 4. * np.pi * self.m * self.e / self.h ** 3
         e_max = 2.5
-        e_min = 0
+        e_min = -2.5
         if volt < 0:
             e_max -= volt
         else:
@@ -71,8 +71,9 @@ class Current:
         def di(e_x):
             return self.density(e_x, volt) * self.transmission(e_x + 0j) * de
 
-        i = Parallel(n_jobs=num_cores)(delayed(di)(i) for i in erange)
-        i_tot = sum(i)
+        di = Parallel(n_jobs=num_cores)(delayed(di)(ex) for ex in erange)
+        i_tot = sum(di)
+        print(i_tot * constants)
         return constants * i_tot
 
 
@@ -91,11 +92,11 @@ if __name__ == '__main__':
     x = np.append(x, np.linspace(.2, 1.5, 8))
     y = [abs(c.current(r)) / 1e+14 for r in x]
     plt.semilogy(x, y)
-    a = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/tunneling/bfo')
-    b = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/tunneling/bfo2')
+    p = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/tunneling/bfo')
+    q = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/tunneling/bfo2')
     for i in range(4):
-        plt.semilogy(a[:, 2 * i], a[:, 2 * i + 1], label=i, color='black', )
-    plt.semilogy(b[:, 0], b[:, 1], color='black')
+        plt.semilogy(p[:, 2 * i], p[:, 2 * i + 1], label=i, color='black', )
+    plt.semilogy(q[:, 0], q[:, 1], color='black')
     plt.legend()
     plt.xlim((-1.5, 1.5))
     plt.show()
