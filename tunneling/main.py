@@ -13,12 +13,12 @@ class Current:
         self.h = 4.135667662e-15  # eV * s
         mass = 0.511 * 1e+6 / 299792458 ** 2  # eV * (s / m) ** 2
         self.e = 1.602e-19  # C
-        self.m = mass * .15
+        self.m = mass * 0.051
         self.hbar = self.h / (2 * np.pi)
         self.v = pot
         self.v_tmp = self.v
         self.dx = 1e-10
-        self.temperature = 300 * 8.617343e-5
+        self.kt = 100 * 8.617343e-5
 
     def fermi(self, e=0.):
         """
@@ -27,17 +27,13 @@ class Current:
         ----------
         E : scalar
             energy"""
-        if (e / self.temperature) > 100:
+        if (e / self.kt) > 100:
             return 0
         else:
-            return 1. / (1. + exp(e / self.temperature))  # eV
+            return 1. / (1. + exp(e / self.kt))  # eV
 
     def gen_pot(self, v):
         self.v = self.v_tmp + np.linspace(0, -v, len(self.v))
-        x = list(range(len(self.v)))
-        x[0] = x[1]
-        x[-1] = x[-2]
-        plt.plot(x, self.v, label=v)
 
     def density(self, e_x, v):
         a = quad(self.fermi, e_x, np.inf)
@@ -62,13 +58,13 @@ class Current:
         # A/m^2
         self.gen_pot(volt)
         constants = 4. * np.pi * self.m * self.e / self.h ** 3
-        e_max = 3.0
-        e_min = -3.0
+        e_max = 2.5
+        e_min = 0
         if volt < 0:
             e_max -= volt
         else:
             e_min -= volt
-        erange = np.linspace(e_min, e_max, 1000)
+        erange = np.linspace(e_min, e_max, 5500)
         de = erange[1] - erange[0]
         num_cores = multiprocessing.cpu_count()
 
@@ -81,7 +77,7 @@ class Current:
 
 
 if __name__ == '__main__':
-    c = Current(np.array([0, *np.linspace(1.5, .5, 20), 0]))
+    c = Current(np.array([0, *np.linspace(2, 0.5, 20), 0]))
     '''
     for i in [1, 3, 7]:
         c.dx = i * 1.3e-10
@@ -90,11 +86,16 @@ if __name__ == '__main__':
         plt.legend()
     plt.show()'''
     fig = plt.figure()
-    fig.add_subplot(211)
     x = np.append(np.linspace(-1.5, -.2, 8), -np.logspace(-1, -3, 8))
     x = np.append(x, np.logspace(-3, -1, 8))
     x = np.append(x, np.linspace(.2, 1.5, 8))
-    y = [abs(c.current(r)) for r in x]
-    fig.add_subplot(212)
+    y = [abs(c.current(r)) / 1e+14 for r in x]
     plt.semilogy(x, y)
+    a = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/tunneling/bfo')
+    b = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/tunneling/bfo2')
+    for i in range(4):
+        plt.semilogy(a[:, 2 * i], a[:, 2 * i + 1], label=i, color='black', )
+    plt.semilogy(b[:, 0], b[:, 1], color='black')
+    plt.legend()
+    plt.xlim((-1.5, 1.5))
     plt.show()
