@@ -1,6 +1,5 @@
-import multiprocessing
 from math import exp
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, cpu_count
 import numpy as np
 from cmath import exp as cexp
 import matplotlib.pyplot as plt
@@ -11,14 +10,32 @@ class Current:
 
     def __init__(self, pot):
         self.h = 4.135667662e-15  # eV * s
-        mass = 0.511 * 1e+6 / 299792458 ** 2  # eV * (s / m) ** 2
+        self.__mass = 0.511 * 1e+6 / 299792458 ** 2  # eV * (s / m) ** 2
         self.e = 1.602e-19  # C
-        self.m = mass * 0.051
+        self.__m = self.__mass * 0.051
         self.hbar = self.h / (2 * np.pi)
-        self.v = pot
-        self.v_tmp = self.v
         self.dx = 1e-10
-        self.kt = 100 * 8.617343e-5
+        self.ef = 5
+        self.v = np.array(pot)
+        self.v[1:-1] += self.ef
+        self.v_tmp = self.v
+        self.kt = 300 * 8.617343e-5
+
+    @property
+    def temperature(self):
+        return self.kt / 8.617343e-5
+
+    @temperature.setter
+    def temperature(self, val):
+        self.kt = val * 8.617343e-5
+
+    @property
+    def m(self):
+        return self.__m / self.__mass
+
+    @m.setter
+    def m(self, new_val):
+        self.__m = self.__mass * new_val
 
     def fermi(self, e=0.):
         """
@@ -38,10 +55,10 @@ class Current:
     def density(self, e_x, v):
         a = quad(self.fermi, e_x, np.inf)
         b = quad(self.fermi, e_x + v, np.inf)
-        return a[0] - b[0]
+        return a[0], -b[0]
 
     def transmission(self, energy):
-        k = np.sqrt(2 * self.m * (energy - self.v)) / self.hbar * self.dx
+        k = np.sqrt(2 * self.__m * (energy + self.ef - self.v)) / self.hbar * self.dx
         matrix = np.identity(2, dtype=np.complex)
         for n in range(0, len(self.v) - 1):
             if k[n] == 0:
@@ -52,28 +69,29 @@ class Current:
             t[1, 0] = (k[n] - k[n + 1]) / 2 / k[n] * cexp(1j * k[n])
             t[1, 1] = (k[n] + k[n + 1]) / 2 / k[n] * cexp(1j * k[n])
             matrix = np.dot(matrix, t)
-        return matrix[0][0].__abs__() ** -2
+        return 1 - abs(matrix[1][0] / matrix[0][0]) ** 2, 1 - abs(matrix[0][1] / matrix[0][0]) ** 2
+
+    #        return (matrix[0][0].__abs__()) ** -2
 
     def current(self, volt):
         # A/m^2
         self.gen_pot(volt)
-        constants = 4. * np.pi * self.m * self.e / self.h ** 3
-        e_max = 2.5
-        e_min = -2.5
+        constants = 4. * np.pi * self.__m * self.e / self.h ** 3
+        e_max = 1.5
+        e_min = -1.5
         if volt < 0:
             e_max -= volt
         else:
             e_min -= volt
-        erange = np.linspace(e_min, e_max, 5500)
+        erange = np.linspace(e_min, e_max, int((e_max - e_min) * 101))
         de = erange[1] - erange[0]
-        num_cores = multiprocessing.cpu_count()
+        num_cores = cpu_count()
 
         def di(e_x):
-            return self.density(e_x, volt) * self.transmission(e_x + 0j) * de
+            return np.dot(self.density(e_x, volt), self.transmission(complex(e_x))) * de
 
         di = Parallel(n_jobs=num_cores)(delayed(di)(ex) for ex in erange)
         i_tot = sum(di)
-        print(i_tot * constants)
         return constants * i_tot
 
 
