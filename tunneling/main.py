@@ -15,7 +15,7 @@ class Current:
         self.__m = self.__mass * 0.051
         self.hbar = self.h / (2 * np.pi)
         self.dx = 1e-10
-        self.ef = 5
+        self.ef = 3
         self.v = np.array(pot)
         self.v[1:-1] += self.ef
         self.v_tmp = self.v
@@ -83,7 +83,7 @@ class Current:
             e_max -= volt
         else:
             e_min -= volt
-        erange = np.linspace(e_min, e_max, int((e_max - e_min) * 101))
+        erange = np.linspace(e_min, e_max, int((e_max - e_min) * 1501))
         de = erange[1] - erange[0]
         num_cores = cpu_count()
 
