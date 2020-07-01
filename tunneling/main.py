@@ -96,25 +96,25 @@ class Current:
 
 
 if __name__ == '__main__':
-    c = Current(np.array([0, *np.linspace(2, 0.5, 20), 0]))
-    '''
-    for i in [1, 3, 7]:
-        c.dx = i * 1.3e-10
-        x = np.linspace(1e-19, 2, 5222)
-        y = [c.transmission(r + 0j) for r in x]
-        plt.legend()
-    plt.show()'''
     fig = plt.figure()
     x = np.append(np.linspace(-1.5, -.2, 8), -np.logspace(-1, -3, 8))
     x = np.append(x, np.logspace(-3, -1, 8))
     x = np.append(x, np.linspace(.2, 1.5, 8))
-    y = [abs(c.current(r)) / 1e+14 for r in x]
-    plt.semilogy(x, y)
-    p = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/tunneling/bfo')
-    q = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/tunneling/bfo2')
-    for i in range(4):
-        plt.semilogy(p[:, 2 * i], p[:, 2 * i + 1], label=i, color='black', )
-    plt.semilogy(q[:, 0], q[:, 1], color='black')
+    arr = dict()
+    arr['dn'] = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/example/pt-bto-lsmo/dn', delimiter='\t')[:, 1]
+    arr['up'] = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/example/pt-bto-lsmo/up', delimiter='\t')[:, 1]
+
+    for i, j in arr.items():
+        j += 1
+        print(j)
+        mim = Current(j)
+        mim.dx = 18e-10
+        y = [mim.current(r) for r in x]
+        y = np.abs(y)
+        print(y)
+        output = np.array((x, y))
+        output = output.transpose()
+        np.savetxt(f'{i}.dat', output, delimiter='\t')
+        plt.semilogy(x, y, label=f'{mim.dx}')
     plt.legend()
-    plt.xlim((-1.5, 1.5))
     plt.show()
