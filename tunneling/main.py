@@ -8,7 +8,7 @@ from scipy.integrate import quad
 
 class Current:
 
-    def __init__(self, pot):
+    def __init__(self, pot): # Initializes the class with the given potential, and sets some other constants and variables.
         self.h = 4.135667662e-15  # eV * s
         self.__mass = 0.511 * 1e+6 / 299792458 ** 2  # eV * (s / m) ** 2
         self.e = 1.602e-19  # C
@@ -37,7 +37,7 @@ class Current:
     def m(self, new_val):
         self.__m = self.__mass * new_val
 
-    def fermi(self, e=0.):
+    def fermi(self, e=0.): # Computes the Fermi-Dirac statistics for a given energy.
         """
         fermi() -> fermi-dirac statistics
             Parameters
@@ -49,15 +49,15 @@ class Current:
         else:
             return 1. / (1. + exp(e / self.kt))  # eV
 
-    def gen_pot(self, v):
+    def gen_pot(self, v): # Generates a new potential by adding an offset to the original potential.
         self.v = self.v_tmp + np.linspace(0, -v, len(self.v))
 
-    def density(self, e_x, v):
+    def density(self, e_x, v): # Computes the density of states at a given energy, e_x, and potential, v.
         a = quad(self.fermi, e_x, np.inf)
         b = quad(self.fermi, e_x + v, np.inf)
         return a[0], -b[0]
 
-    def transmission(self, energy):
+    def transmission(self, energy): # Computes the transmission probability for a given energy, using the transfer matrix method.
         k = np.sqrt(2 * self.__m * (energy + self.ef - self.v)) / self.hbar * self.dx
         matrix = np.identity(2, dtype=np.complex)
         for n in range(0, len(self.v) - 1):
@@ -73,7 +73,7 @@ class Current:
 
     #        return (matrix[0][0].__abs__()) ** -2
 
-    def current(self, volt):
+    def current(self, volt): # Computes the current flowing through the system under a given voltage.
         # A/m^2
         self.gen_pot(volt)
         constants = 4. * np.pi * self.__m * self.e / self.h ** 3
