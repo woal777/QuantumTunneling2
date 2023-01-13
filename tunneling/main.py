@@ -15,11 +15,13 @@ class Current:
         self.__m = self.__mass * 0.051
         self.hbar = self.h / (2 * np.pi)
         self.dx = 1e-10
-        self.ef = 3
+        self.ef = 4
         self.v = np.array(pot)
         self.v[1:-1] += self.ef
         self.v_tmp = self.v
         self.kt = 300 * 8.617343e-5
+        self.num_estep = 1000
+        self.emax = 1.8
 
     @property
     def temperature(self):
@@ -77,13 +79,13 @@ class Current:
         # A/m^2
         self.gen_pot(volt)
         constants = 4. * np.pi * self.__m * self.e / self.h ** 3
-        e_max = 1.5
-        e_min = -1.5
+        e_max = self.emax
+        e_min = -self.emax
         if volt < 0:
             e_max -= volt
         else:
             e_min -= volt
-        erange = np.linspace(e_min, e_max, int((e_max - e_min) * 1501))
+        erange = np.linspace(e_min, e_max, self.num_estep)
         de = erange[1] - erange[0]
         num_cores = cpu_count()
 
