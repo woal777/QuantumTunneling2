@@ -13,11 +13,12 @@ for i, j in enumerate([
     c = Current(j)
     c.dx = 4.08e-10
     c.m = 0.2
+    c.num_estep = 500
     y = [abs(c.current(r)) for r in x]
     yy.append(y)
     plt.semilogy(x, y, label=i)
 plt.legend()
-plt.ylim((.1, 2e+9))
+plt.ylim((.1, 2e+11))
 yy = np.array(yy)
 df = pd.DataFrame(yy.T)
 df.to_excel('data_phi.xlsx', index=False)
