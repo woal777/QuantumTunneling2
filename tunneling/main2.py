@@ -1,123 +1,133 @@
-import time
-
-import sys
+from math import exp
 from joblib import Parallel, delayed, cpu_count
 import numpy as np
-from cmath import exp
-from numpy.lib.scimath import sqrt
+from cmath import exp as cexp
 import matplotlib.pyplot as plt
-from joblib.externals.loky import get_reusable_executor
+from scipy.integrate import quad
 
 
-class MIM:
+class Current:
 
-    def __init__(self, v, fix_m=False):
-        self.e = 1.602e-19  # C
+    def __init__(self, pot, cbEn=[], effMetal=1.): # Initializes the class with the given potential, and sets some other constants and variables.
         self.h = 4.135667662e-15  # eV * s
+        self.__mass = 0.511 * 1e+6 / 299792458 ** 2  # eV * (s / m) ** 2
+        self.__m = self.__mass
+        self.e = 1.602e-19  # C
         self.hbar = self.h / (2 * np.pi)
-        self.rest_mass = 0.511 * 1e+6 / 299792458 ** 2  # eV * (s / m) ** 2
-        self.m_h = sqrt(self.rest_mass) / self.hbar
-        self.V = v
-        self.V += sys.float_info.epsilon
-        self.v_calc = self.V
-        if fix_m:
-            self.m = .3
-        else:
-            self.m = np.zeros(len(self.V))
+        self.dx = 1e-10
+        self.ef = 4
+        self.v = np.array(pot)
+        self.v[1:-1] += self.ef
+        self.v_tmp = self.v
         self.kt = 300 * 8.617343e-5
-        self.dx = 18e-10
-        self.constants = 4. * np.pi * self.rest_mass * self.e / self.h ** 3
+        self.num_estep = 1000
+        self.emax = 1.8
+        self.cbEn = cbEn
+        self.effMetal = effMetal
 
-    def transmission(self, E_x):
-        if not isinstance(self.m, float):
-            for i in range(len(self.V)):
-                if self.v_calc[i] - E_x < 0.1:
-                    self.m[i] = 0.16869
-                elif self.v_calc[i] - E_x < 0.6:
-                    self.m[i] = .086 + .906 * (self.v_calc[i] - E_x) - .791 * (self.v_calc[i] - E_x) ** 2
-                else:
-                    self.m[i] = .3448399999999999
-            self.m[0] = .65
-            self.m[-1] = .65
-        k = sqrt(2 * self.m * (E_x - self.v_calc)) * self.m_h * self.dx
-        beta = k / self.m
-        matrix = np.identity(2, dtype=np.complex)
-        for j in range(len(self.V) - 1):
-            T = np.zeros((2, 2), dtype=np.complex)
-            T[0, 0] = (beta[j] + beta[j + 1]) / (2 * beta[j]) * exp(-1j * k[j])
-            T[0, 1] = (beta[j] - beta[j + 1]) / (2 * beta[j]) * exp(-1j * k[j])
-            T[1, 0] = (beta[j] - beta[j + 1]) / (2 * beta[j]) * exp(1j * k[j])
-            T[1, 1] = (beta[j] + beta[j + 1]) / (2 * beta[j]) * exp(1j * k[j])
-            matrix = np.dot(matrix, T)
-        return 1 - abs(matrix[1][0] / matrix[0][0]) ** 2
+    @property
+    def temperature(self):
+        return self.kt / 8.617343e-5
 
-    def gen_pot(self, v):
-        if v > 0:
-            self.v_calc = self.V + np.linspace(0, v, len(self.V))
-        else:
-            self.v_calc = self.V + np.linspace(v, 0, len(self.V))
+    @temperature.setter
+    def temperature(self, val):
+        self.kt = val * 8.617343e-5
 
-    def current(self, V):
-        # self.gen_pot(V)
-        E_xm = 2
-        Nx = 600
-        E_rm = 2
-        Nr = 600
-        trans = 0.
-        j = lambda n, l: trans * E_xm / Nx * \
-                         (self.f(E_rm / Nr * l + E_xm / Nx * n) - self.f(
-                             E_rm / Nr * l + E_xm / Nx * n - abs(V))) * E_rm / Nr
+    @property
+    def m(self):
+        return self.__m / self.__mass
 
-        jj = 0
-        for nn in range(1, Nx + 1):
-            trans = self.transmission(E_xm / Nx * nn)
-            for ll in range(1, Nr + 1):
-                jj += j(nn, ll)
-        return self.constants * jj
+    @m.setter
+    def m(self, new_val):
+        self.__m = self.__mass * new_val
 
-    def f(self, e):
+    def set_mass(self, dE=[]):
+        self.__m = np.zeros(self.v.shape) * self.__mass 
+        # tmp = self.__mass * self.cbEn[min(enumerate(self.cbEn[:,0]), key=lambda y: abs(y[1]-dE))[0],1]
+        self.__m = [self.cbEn[min(enumerate(self.cbEn[:,0]), key=lambda y: abs(y[1]-dE[i]))[0],1] for i in range(len(self.v))]
+        self.__m = np.array(self.__m) * self.__mass
+            # tmp = self.__mass * 1.
+        self.__m[0] = self.__mass * self.effMetal
+        self.__m[-1] = self.__mass * self.effMetal
+
+
+    def fermi(self, e=0.): # Computes the Fermi-Dirac statistics for a given energy.
+        """
+        fermi() -> fermi-dirac statistics
+            Parameters
+        ----------
+        E : scalar
+            energy"""
         if (e / self.kt) > 100:
             return 0
         else:
             return 1. / (1. + exp(e / self.kt))  # eV
 
-    def iv(self, volt):
-        num_cores = cpu_count()
-        current = Parallel(n_jobs=num_cores)(delayed(self.current)(r) for r in volt)
-        return current
+    def gen_pot(self, v): # Generates a new potential by adding an offset to the original potential.
+        self.v = self.v_tmp + np.linspace(0, -v, len(self.v))
+
+    def density(self, e_x, v): # Computes the density of states at a given energy, e_x, and potential, v.
+        a = quad(self.fermi, e_x, np.inf)
+        b = quad(self.fermi, e_x + v, np.inf)
+        return a[0], -b[0]
+
+    def transmission(self, energy): # Computes the transmission probability for a given energy, using the transfer matrix method.
+        if len(self.cbEn) > 0:
+            self.set_mass(self.v - energy - self.ef)
+        k = np.sqrt(2 * self.__m * (complex(energy + self.ef)- self.v)) / self.hbar * self.dx
+        matrix = np.identity(2, dtype=np.complex)
+        for n in range(0, len(self.v) - 1):
+            if k[n] == 0:
+                continue
+            t = np.zeros((2, 2), dtype=np.complex)
+            t[0, 0] = (k[n] + k[n + 1]) / 2 / k[n] * cexp(-1j * k[n])
+            t[0, 1] = (k[n] - k[n + 1]) / 2 / k[n] * cexp(-1j * k[n])
+            t[1, 0] = (k[n] - k[n + 1]) / 2 / k[n] * cexp(1j * k[n])
+            t[1, 1] = (k[n] + k[n + 1]) / 2 / k[n] * cexp(1j * k[n])
+            matrix = np.dot(matrix, t)
+        return 1 - abs(matrix[1][0] / matrix[0][0]) ** 2, 1 - abs(matrix[0][1] / matrix[0][0]) ** 2
+
+    def current(self, volt): # Computes the current flowing through the system under a given voltage.
+        # A/m^2
+        self.gen_pot(volt)
+        constants = 4. * np.pi * self.__mass * self.e / self.h ** 3
+        e_max = self.emax
+        e_min = -self.emax
+        if volt < 0:
+            e_max -= volt
+        else:
+            e_min -= volt
+        erange = np.linspace(e_min, e_max, self.num_estep)
+        de = erange[1] - erange[0]
+
+        def di(e_x):
+            return np.dot(self.density(e_x, volt), self.transmission(e_x)) * de
+
+        di = [di(ex) for ex in erange]
+        i_tot = sum(di)
+        return constants * i_tot
 
 
 if __name__ == '__main__':
-    t = time.time()
-    x = np.append(np.linspace(-.5, -.1, 12, endpoint=False), -np.logspace(-1, -4, 8))
-    x = np.append(x, np.logspace(-4, -1, 8, endpoint=False))
-    x = np.append(x, np.linspace(.1, .5, 12))
+    fig = plt.figure()
+    x = np.append(np.linspace(-1.5, -.2, 8), -np.logspace(-1, -3, 8))
+    x = np.append(x, np.logspace(-3, -1, 8))
+    x = np.append(x, np.linspace(.2, 1.5, 8))
     arr = dict()
-    arr['dn'] = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/example/pt-bto-lsmo/dn', delimiter='\t')[
-                :, 1]
-    arr['up'] = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/example/pt-bto-lsmo/up', delimiter='\t')[
-                :, 1]
-    arr['up'][-1] = 0.5645515105105274
-    # for i in [2, 6 , 14]:
-    #     mim = MIM(np.array([0, 1., 0]), fix_m=True)
-    #     mim.dx = i * 1e-10
-    #     print(sqrt(2 * mim.rest_mass) * mim.dx / mim.hbar)
-    #     x = np.linspace(-1, 3, 200)
-    #     y = list(map(mim.transmission, x))
-    #     plt.plot(x, y)
+    arr['dn'] = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/example/pt-bto-lsmo/dn', delimiter='\t')[:, 1]
+    arr['up'] = np.genfromtxt('/home/jinho93/PycharmProjects/QuantumTunneling2/example/pt-bto-lsmo/up', delimiter='\t')[:, 1]
+
     for i, j in arr.items():
         j += 1
-        j = np.append(0, j)
-        j = np.append(j, 0)
-        mim = MIM(j)
-        mim.dx = 8e-10
-        y = mim.iv(x)
+        print(j)
+        mim = Current(j)
+        mim.dx = 18e-10
+        y = [mim.current(r) for r in x]
         y = np.abs(y)
+        print(y)
         output = np.array((x, y))
         output = output.transpose()
         np.savetxt(f'{i}.dat', output, delimiter='\t')
-        plt.semilogy(x, y, label=f'{i}')
-    print(time.time() - t)
-    get_reusable_executor(timeout=1)
+        plt.semilogy(x, y, label=f'{mim.dx}')
     plt.legend()
     plt.show()

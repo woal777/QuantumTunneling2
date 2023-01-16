@@ -11,8 +11,8 @@ class Current:
     def __init__(self, pot): # Initializes the class with the given potential, and sets some other constants and variables.
         self.h = 4.135667662e-15  # eV * s
         self.__mass = 0.511 * 1e+6 / 299792458 ** 2  # eV * (s / m) ** 2
+        self.__m = self.__mass
         self.e = 1.602e-19  # C
-        self.__m = self.__mass * 0.051
         self.hbar = self.h / (2 * np.pi)
         self.dx = 1e-10
         self.ef = 4
