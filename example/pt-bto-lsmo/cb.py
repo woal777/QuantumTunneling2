@@ -9,7 +9,7 @@ x = np.append(x, np.linspace(.1, .5, 12))
 arr = dict()
 arr['dn'] = np.genfromtxt('dn', delimiter='\t')
 arr['up'] = np.genfromtxt('up', delimiter='\t')
-cbEn = [[0.1, 1.], [0.4, 1.5]]
+cbEn = [[0.1, 1.], [0.1, 1.2], [0.4, 1.5]]
 cbEn = np.array(cbEn)
 for i, j in arr.items():
     mim = Current(j, cbEn)
