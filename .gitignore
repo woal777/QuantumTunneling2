@@ -1,7 +1,5 @@
-<<<<<<< HEAD
 .idea/
 
-=======
 
 # Created by https://www.gitignore.io/api/python,pycharm
 *.dat
@@ -216,4 +214,3 @@ pip-selfcheck.json
 
 
 # End of https://www.gitignore.io/api/python,pycharm
->>>>>>> aada08b4681e474f46f38f4b4cb702796d2726eb
