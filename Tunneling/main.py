@@ -68,22 +68,39 @@ class Current:
         a = quad(self.fermi, e_x, np.inf)
         b = quad(self.fermi, e_x + v, np.inf)
         return a[0], -b[0]
-
-    def transmission(self, energy): # Computes the transmission probability for a given energy, using the transfer matrix method.
+    
+    def transmission(self, energy):
+        # Computes the transmission probability for a given energy, using the transfer matrix method.
+        
+        # Compute the wave vector at each point in the potential energy array.
         k = np.sqrt(2 * self.__m * (energy + self.__ef - self.v)) / self.hbar * self.dx
+        
+        # Initialize the transfer matrix as a 2x2 identity matrix with complex data type.
         matrix = np.identity(2, dtype=np.complex)
+        
+        # Compute the transfer matrix at each point in the potential energy array using the wave vectors.
         for n in range(0, len(self.v) - 1):
+            # Skip the current iteration if the wave vector is zero to avoid division by zero errors.
             if k[n] == 0:
                 continue
+            # Compute the transfer matrix at the current point and multiply it with the previous transfer matrix.
             t = np.zeros((2, 2), dtype=np.complex)
             t[0, 0] = (k[n] + k[n + 1]) / 2 / k[n] * cexp(-1j * k[n])
             t[0, 1] = (k[n] - k[n + 1]) / 2 / k[n] * cexp(-1j * k[n])
             t[1, 0] = (k[n] - k[n + 1]) / 2 / k[n] * cexp(1j * k[n])
             t[1, 1] = (k[n] + k[n + 1]) / 2 / k[n] * cexp(1j * k[n])
             matrix = np.dot(matrix, t)
-        return 1 - abs(matrix[1][0] / matrix[0][0]) ** 2, 1 - abs(matrix[0][1] / matrix[0][0]) ** 2
-
-    #        return (matrix[0][0].__abs__()) ** -2
+        
+        # Compute the transmission probabilities for leftward and rightward propagating waves.
+        # The probabilities are obtained by taking the absolute value of the off-diagonal element in the
+        # transfer matrix that relates the wave amplitudes at the first and last points in the potential energy array,
+        # and dividing it by the absolute value of the diagonal element. The probabilities are then subtracted from 1 to
+        # obtain the transmission probabilities.
+        left_prob = 1 - abs(matrix[1][0] / matrix[0][0]) ** 2
+        right_prob = 1 - abs(matrix[0][1] / matrix[0][0]) ** 2
+        
+        # Return the transmission probabilities as a tuple.
+        return left_prob, right_prob
 
     def current(self, volt): # Computes the current flowing through the system under a given voltage.
         # A/m^2
