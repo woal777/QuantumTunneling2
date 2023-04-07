@@ -1,5 +1,5 @@
 #%%
-from tunneling.main2 import Current, plt, np
+from tunneling.main_cband import Current, plt, np
 import time
 
 t = time.time()

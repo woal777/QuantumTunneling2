@@ -1,3 +1,4 @@
+from copy import copy
 from math import exp
 from joblib import Parallel, delayed, cpu_count
 import numpy as np
@@ -15,13 +16,22 @@ class Current:
         self.e = 1.602e-19  # C
         self.hbar = self.h / (2 * np.pi)
         self.dx = 1e-10
+        self.pot = np.array(pot, dtype=np.float)
         self.ef = 4
-        self.v = np.array(pot)
-        self.v[1:-1] += self.ef
-        self.v_tmp = self.v
         self.kt = 300 * 8.617343e-5
         self.num_estep = 1000
         self.emax = 1.8
+
+    @property
+    def ef(self):
+        return self.__ef
+    
+    @ef.setter
+    def ef(self, val):
+        self.v = copy(self.pot)
+        self.__ef = val
+        self.v[1:-1] += self.__ef
+        self.v_tmp = copy(self.v)
 
     @property
     def temperature(self):
@@ -60,7 +70,7 @@ class Current:
         return a[0], -b[0]
 
     def transmission(self, energy): # Computes the transmission probability for a given energy, using the transfer matrix method.
-        k = np.sqrt(2 * self.__m * (energy + self.ef - self.v)) / self.hbar * self.dx
+        k = np.sqrt(2 * self.__m * (energy + self.__ef - self.v)) / self.hbar * self.dx
         matrix = np.identity(2, dtype=np.complex)
         for n in range(0, len(self.v) - 1):
             if k[n] == 0:
